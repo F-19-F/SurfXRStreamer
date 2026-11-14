@@ -217,6 +217,8 @@ Dashboard 安装与诊断回归：`surfxr_dashboard` 测试覆盖计划结果持
 
 安装器版本/预览回归：`surfxr_dashboard` 用生产入口检查真实命令预览、配对查询、直接链路 JSON 和 Windows PowerShell 模块隔离；拒绝把旧 `frame-client` 适配脚本作为 Dashboard 入口。`surfxr_xtask` 检查完整 `frame-installer` 复制且不改旧头显包。`test_frame_release.ps1` 在 PowerShell 5.1/7 下用假 SSH/SCP 对比执行命令与预览，调用打包布局中的真实根入口验证新参数、安装配对回执及入口加载失败的错误回传。`test_release_package.py` 检查 standalone ZIP 内命令 helper 的哈希。实际 SSH 密码提示、头显安装和配对仍需单独验收。
 
+Windows CI 打包回归：在 PowerShell 7 和 Windows PowerShell 5.1 运行 `scripts/package/test_portable_windows.ps1 -CompileSetup`，使用隔离假 payload 和真实 NSIS 编译器，只编译、不执行安装器。fixture 禁用 Archive cmdlet，检查 ZIP 生成/覆盖/解压、路径越界拒绝、适配脚本哈希和私有文件排除。`test_prepare_cargo_about.py` 检查离线缓存复用、损坏缓存修复、下载/可执行文件校验失败拒绝及只提取指定文件；`cargo xtask check-licenses` 对真实依赖图生成 `build/reports/dependencies.html`。CI 的 Rust 回归使用 `--release --locked`；本地检查通过不代表已测得 GitHub runner 缓存命中率或总耗时。
+
 `scripts/package/test_portable_windows.ps1` 在 `build/tests` 内运行生产 PC 打包器，检查四个适配脚本及清单哈希、保留旧 Frame 包、排除用户设置和额外脚本，以及缺少 helper 时拒绝打包。夹具程序不能运行，生成的测试 ZIP 只在隔离目录内，测试不覆盖或部署真实发行包。
 
 Dashboard 桌面会话回归：`surfxr_dashboard` 覆盖无 SteamVR 时设备行显示桌面连接、IP 与断开按钮，消失后恢复 SteamVR 原状态；broker 覆盖桌面/VR/待机、消费前拒绝通知订阅、IP 匹配、重复订阅拒绝、按票据断开、所有会话退出通知、通知连接关闭清理和重新连接。`surfxr-desktop-offline` 的 `dashboard_watch_checks.cpp` 使用预留随机回环端点执行原生订阅与撤销，检查旧 Dashboard 关闭未知操作码以及 EOF 不等于主动撤销，记录无消息时轮询开销。`daemon-worker-ipc` 和 `desktop-video-lifecycle` 验证既有资源退出路径。离线 UI 捕获第 11 页包含虚构桌面设备，不连接真实服务。

@@ -10,20 +10,29 @@ use xshell::{Shell, cmd};
 
 pub fn generate_licenses(licenses_output: &Path) {
     let sh = Shell::new().unwrap();
-    cmd!(sh, "cargo install cargo-about --version 0.8.4 --locked")
-        .run()
-        .unwrap();
+    let (scanner, targets) = if cfg!(windows) {
+        let prepare = afs::repository_dir().join("scripts/build/prepare_cargo_about.py");
+        let scanner = cmd!(sh, "python {prepare}").read().unwrap();
+        (scanner, vec!["--target", "x86_64-pc-windows-msvc"])
+    } else {
+        // Keep the existing non-Windows local preparation path.
+        cmd!(sh, "cargo install cargo-about --version 0.9.3 --locked")
+            .run().unwrap();
+        ("cargo-about".to_owned(), vec![])
+    };
     let licenses_template = afs::crate_dir("xtask").join("licenses_template.hbs");
     cmd!(
         sh,
-        "cargo about generate {licenses_template} -o {licenses_output}"
+        "{scanner} generate --locked --fail {targets...} {licenses_template} -o {licenses_output}"
     )
     .run()
     .unwrap();
 }
 
 pub fn check_licenses() {
-    generate_licenses(&std::env::temp_dir().join("dependencies.html"));
+    let reports = afs::repository_dir().join("build/reports");
+    std::fs::create_dir_all(&reports).unwrap();
+    generate_licenses(&reports.join("dependencies.html"));
 }
 
 pub fn include_base_licenses(root_path: &Path) {
@@ -100,6 +109,7 @@ pub fn package_streamer(
         let source = afs::streamer_build_dir();
         let flags = if setup { vec!["-Setup"] } else { vec![] };
         cmd!(sh, "powershell -NoProfile -ExecutionPolicy Bypass -File {script} -Source {source} {flags...}")
+            .env_remove("PSModulePath")
             .run().unwrap();
     } else if cfg!(windows) {
         command::zip(&sh, &afs::streamer_build_dir()).unwrap();

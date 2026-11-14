@@ -28,4 +28,3 @@ targets = [
     "wasm32-unknown-unknown",
 ]
 workarounds = ["ring"]
-filter-noassertion = true

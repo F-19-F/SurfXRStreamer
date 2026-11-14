@@ -2,6 +2,7 @@
 # Inputs are already built payloads. No pairing, service installation or downloads.
 param([Parameter(Mandatory=$true)][string]$Source, [switch]$Setup)
 $ErrorActionPreference = 'Stop'
+Add-Type -AssemblyName System.IO.Compression.FileSystem
 # Use .NET directly so Windows PowerShell and pwsh module paths need not match.
 function Get-PayloadHash([string]$Path) {
     $stream = [IO.File]::OpenRead($Path)
@@ -62,7 +63,8 @@ Get-ChildItem -LiteralPath $folder -Filter '*.dll' -File | ForEach-Object {
     Copy-Item -LiteralPath $_.FullName -Destination (Join-Path $folder 'bin/win64')
 }
 $frameStage = Join-Path $stage 'frame-extracted'
-Expand-Archive -LiteralPath $frameZip -DestinationPath $frameStage
+# The Archive module inherited from pwsh may require .NET overloads absent in PS 5.1.
+[IO.Compression.ZipFile]::ExtractToDirectory($frameZip, $frameStage)
 $frameRoots = @(Get-ChildItem -LiteralPath $frameStage -Directory)
 if ($frameRoots.Count -ne 1) { throw 'Expected one Frame release root' }
 $frameSource = $frameRoots[0].FullName
@@ -125,7 +127,9 @@ $manifest = [ordered]@{format_version=1; release_id=$releaseId; source_commit=$r
 [IO.File]::WriteAllText((Join-Path $folder 'pc-release-manifest.json'),
     ($manifest | ConvertTo-Json -Depth 5), $utf8)
 $archive = Join-Path $releaseRoot 'SurfXR-Windows-portable.zip'
-Compress-Archive -LiteralPath $folder -DestinationPath $archive -Force -CompressionLevel Optimal
+if (Test-Path -LiteralPath $archive) { Remove-Item -LiteralPath $archive }
+[IO.Compression.ZipFile]::CreateFromDirectory($folder, $archive,
+    [IO.Compression.CompressionLevel]::Optimal, $true)
 [IO.File]::WriteAllText(($archive + '.sha256'),
     ((Get-PayloadHash $archive) + "`n"), $utf8)
 Write-Output "Portable package: $archive"
