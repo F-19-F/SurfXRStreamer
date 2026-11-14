@@ -1,0 +1,13 @@
+[package]
+name = "surfxr_system_info"
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
+license.workspace = true
+
+[dependencies]
+surfxr_common.workspace = true
+
+jni = "0.22"
+serde = { version = "1", features = ["derive"] }
+settings-schema = { git = "https://github.com/alvr-org/settings-schema-rs", rev = "676185f" }

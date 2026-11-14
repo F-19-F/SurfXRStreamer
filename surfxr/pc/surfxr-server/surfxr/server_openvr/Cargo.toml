@@ -1,0 +1,36 @@
+[package]
+name = "surfxr_server_openvr"
+version.workspace = true
+edition.workspace = true
+authors = ["SurfXR contributors", "alvr-org", "Valve Corporation"]
+license = "MIT"
+
+[lib]
+crate-type = ["cdylib", "rlib"]
+
+[features]
+gpl = [] # Enable for FFmpeg support on Windows. Always enabled on Linux
+
+[dependencies]
+surfxr_common.workspace = true
+surfxr_audio.workspace = true
+surfxr_filesystem.workspace = true
+surfxr_packets.workspace = true
+surfxr_server_core.workspace = true
+surfxr_server_io.workspace = true
+surfxr_session.workspace = true
+surfxr_sockets.workspace = true
+
+serde_json = "1"
+bincode = { version = "2", features = ["serde"] }
+log = "0.4"
+sysinfo = { version = "0.38", default-features = false, features = ["system"] }
+
+[build-dependencies]
+surfxr_filesystem = { path = "../filesystem" }
+bindgen = "0.72"
+cc = { version = "1", features = ["parallel"] }
+walkdir = "2"
+
+[target.'cfg(target_os = "linux")'.build-dependencies]
+pkg-config = "0.3"

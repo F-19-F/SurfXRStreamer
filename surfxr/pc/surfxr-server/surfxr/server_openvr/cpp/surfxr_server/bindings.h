@@ -1,0 +1,294 @@
+#pragma once
+
+struct FfiFov {
+    float left;
+    float right;
+    float up;
+    float down;
+};
+
+struct FfiQuat {
+    float x;
+    float y;
+    float z;
+    float w;
+};
+
+struct FfiPose {
+    FfiQuat orientation;
+    float position[3];
+};
+
+struct FfiDeviceMotion {
+    unsigned long long deviceID;
+    FfiPose pose;
+    float linearVelocity[3];
+    float angularVelocity[3];
+    // Private Rust/native ABI. Zero epoch keeps upstream prediction semantics.
+    unsigned long long poseEpoch;
+    double poseTimeOffsetS;
+};
+
+struct FfiViewParams {
+    FfiPose pose;
+    FfiFov fov;
+};
+extern "C" bool RecordFramePose(unsigned long long timestampNs, const float* matrix);
+
+struct FfiHandSkeleton {
+    float jointPositions[31][3];
+    FfiQuat jointRotations[31];
+};
+
+struct FfiHandData {
+    const FfiDeviceMotion* controllerMotion;
+    const FfiHandSkeleton* handSkeleton;
+    bool isHandTracker;
+    bool predictHandSkeleton;
+};
+
+enum FfiOpenvrPropertyType {
+    Bool,
+    Float,
+    Int32,
+    Uint64,
+    Vector3,
+    Double,
+    String,
+};
+
+union FfiOpenvrPropertyValue {
+    unsigned int bool_;
+    float float_;
+    int int32;
+    unsigned long long uint64;
+    float vector3[3];
+    double double_;
+    char string[256];
+};
+
+struct FfiOpenvrProperty {
+    unsigned int key;
+    FfiOpenvrPropertyType type;
+    FfiOpenvrPropertyValue value;
+};
+
+enum FfiButtonType {
+    BUTTON_TYPE_BINARY,
+    BUTTON_TYPE_SCALAR,
+};
+
+struct FfiButtonValue {
+    FfiButtonType type;
+    union {
+        unsigned int binary;
+        float scalar;
+    };
+};
+
+struct FfiDynamicEncoderParams {
+    unsigned int updated;
+    unsigned long long bitrate_bps;
+    float framerate;
+};
+
+struct FfiFoveatedEncodingParams {
+    unsigned int encodedViewResolution[2];
+    float viewRatio[2];
+    float centerSize[2];
+    float centerShifts[2][2];
+    float edgeRatio[2];
+};
+
+struct FfiFoveationCenters {
+    bool valid;
+    float centerShifts[2][2];
+};
+struct FfiFrameGazeConfig {
+    bool enabled;
+    unsigned int baseWidth, baseHeight, focusWidth, focusHeight;
+};
+struct FfiFrameGazeCrops { unsigned int topLeft[2][2]; };
+
+struct Settings {
+    int m_refreshRate;
+    unsigned int m_renderWidth;
+    unsigned int m_renderHeight;
+    int m_recommendedTargetWidth;
+    int m_recommendedTargetHeight;
+    int m_nAdapterIndex;
+
+    bool m_enableFoveatedEncoding;
+    FfiFoveatedEncodingParams m_foveatedEncoding;
+    FfiFrameGazeConfig m_frameGaze;
+
+    bool m_enableColorCorrection;
+    float m_brightness;
+    float m_contrast;
+    float m_saturation;
+    float m_gamma;
+    float m_sharpening;
+
+    int m_codec;
+    int m_h264Profile;
+    bool m_use10bitEncoder;
+    double m_encodingGamma;
+    bool m_enableHdr;
+    bool m_forceHdrSrgbCorrection;
+    bool m_clampHdrExtendedRange;
+    bool m_enableAmfPreAnalysis;
+    bool m_enableVbaq;
+    bool m_enableAmfHmqb;
+    bool m_useAmfPreproc;
+    unsigned int m_amfPreProcSigma;
+    unsigned int m_amfPreProcTor;
+    unsigned int m_encoderQualityPreset;
+    bool m_amdBitrateCorruptionFix;
+    unsigned int m_nvencQualityPreset;
+    unsigned int m_rateControlMode;
+    bool m_fillerData;
+    unsigned int m_entropyCoding;
+    bool m_forceSwEncoding;
+    unsigned int m_swThreadCount;
+
+    unsigned int m_nvencTuningPreset;
+    unsigned int m_nvencMultiPass;
+    unsigned int m_nvencSplitEncodeMode;
+    unsigned int m_nvencAdaptiveQuantizationMode;
+    long long m_nvencLowDelayKeyFrameScale;
+    long long m_nvencRefreshRate;
+    bool m_nvencEnableIntraRefresh;
+    long long m_nvencIntraRefreshPeriod;
+    long long m_nvencIntraRefreshCount;
+    long long m_nvencMaxNumRefFrames;
+    long long m_nvencGopLength;
+    long long m_nvencPFrameStrategy;
+    long long m_nvencRateControlMode;
+    long long m_nvencRcBufferSize;
+    long long m_nvencRcInitialDelay;
+    long long m_nvencRcMaxBitrate;
+    long long m_nvencRcAverageBitrate;
+    bool m_nvencEnableWeightedPrediction;
+
+    unsigned long long m_minimumIdrIntervalMs;
+
+    bool m_enableViveTrackerProxy = false;
+    bool m_trackingRefOnly = false;
+
+    bool m_enableControllers;
+    bool m_controllerIsTracker = false;
+    bool m_enableBodyTrackingFakeVive = false;
+    bool m_bodyTrackingHasLegs = false;
+    bool m_useSeparateHandTrackers = false;
+};
+
+#include "FrameWorkerBindings.h"
+
+extern "C" const unsigned char* FRAME_RENDER_VS_CSO_PTR;
+extern "C" unsigned int FRAME_RENDER_VS_CSO_LEN;
+extern "C" const unsigned char* FRAME_RENDER_PS_CSO_PTR;
+extern "C" unsigned int FRAME_RENDER_PS_CSO_LEN;
+extern "C" const unsigned char* QUAD_SHADER_CSO_PTR;
+extern "C" unsigned int QUAD_SHADER_CSO_LEN;
+extern "C" const unsigned char* COMPRESS_AXIS_ALIGNED_CSO_PTR;
+extern "C" unsigned int COMPRESS_AXIS_ALIGNED_CSO_LEN;
+extern "C" const unsigned char* COLOR_CORRECTION_CSO_PTR;
+extern "C" unsigned int COLOR_CORRECTION_CSO_LEN;
+extern "C" const unsigned char* RGBTOYUV420_CSO_PTR;
+extern "C" unsigned int RGBTOYUV420_CSO_LEN;
+
+extern "C" const unsigned char* QUAD_SHADER_COMP_SPV_PTR;
+extern "C" unsigned int QUAD_SHADER_COMP_SPV_LEN;
+extern "C" const unsigned char* COLOR_SHADER_COMP_SPV_PTR;
+extern "C" unsigned int COLOR_SHADER_COMP_SPV_LEN;
+extern "C" const unsigned char* FFR_SHADER_COMP_SPV_PTR;
+extern "C" unsigned int FFR_SHADER_COMP_SPV_LEN;
+extern "C" const unsigned char* RGBTOYUV420_SHADER_COMP_SPV_PTR;
+extern "C" unsigned int RGBTOYUV420_SHADER_COMP_SPV_LEN;
+
+extern "C" const char* g_sessionPath;
+extern "C" const char* g_driverRootDir;
+
+extern "C" void LogError(const char* stringPtr);
+extern "C" void LogWarn(const char* stringPtr);
+extern "C" void LogInfo(const char* stringPtr);
+extern "C" void LogDebug(const char* stringPtr);
+extern "C" void LogEncoder(const char* stringPtr);
+extern "C" void LogPeriodically(const char* tag, const char* stringPtr);
+extern "C" void DriverReadyIdle(bool setDefaultChaprone);
+extern "C" void SetVideoConfigNals(const unsigned char* configBuffer, int len, int codec);
+extern "C" void
+VideoSend(unsigned long long targetTimestampNs, unsigned char* buf, int len, bool isIdr);
+extern "C" void
+HapticsSend(unsigned long long path, float duration_s, float frequency, float amplitude);
+extern "C" void ShutdownRuntime();
+extern "C" unsigned long long PathStringToHash(const char* path);
+extern "C" void ReportPresent(unsigned long long timestamp_ns, unsigned long long offset_ns);
+extern "C" void ReportComposed(unsigned long long timestamp_ns, unsigned long long offset_ns);
+extern "C" FfiDynamicEncoderParams GetDynamicEncoderParams();
+extern "C" FfiFoveationCenters GetEyeTrackedFoveationCenters(unsigned long long targetTimestampNs);
+extern "C" FfiFrameGazeCrops GetFrameGazeCrops(unsigned long long targetTimestampNs);
+extern "C" void ReportEncoderFoveationCenters(
+    unsigned long long targetTimestampNs, float leftX, float leftY, float rightX, float rightY
+);
+extern "C" unsigned long long GetSerialNumber(unsigned long long deviceID, char* outString);
+extern "C" void SetOpenvrProps(void* instancePtr, unsigned long long deviceID);
+extern "C" void RegisterButtons(void* instancePtr, unsigned long long deviceID);
+extern "C" void WaitForVSync();
+
+// The vsync grid, in Rust. The driver starts and stops the announcer with its own lifetime, holds
+// Present against the grid, and reads the skipped tick count, without keeping a copy of any of it.
+extern "C" void StartVsyncAnnouncer();
+extern "C" void StopVsyncAnnouncer();
+extern "C" void PaceAfterPresent(unsigned int throttleFrames);
+extern "C" unsigned int TakeSkippedVsyncs();
+
+extern "C" void CppInit(bool earlyHmdInitialization, Settings settings);
+extern "C" void* CppOpenvrEntryPoint(const char* pInterfaceName, int* pReturnCode);
+extern "C" void InitializeRuntime();
+extern "C" bool ShouldInitializeRuntime();
+extern "C" bool InitializeStreaming(Settings settings);
+extern "C" void DeinitializeStreaming();
+// Called by the vsync grid in Rust, which owns the schedule. Declaring the vsync is the only part
+// of it that has to stay on this side, because the interface is C++. The offset is in seconds and
+// runs negative when the announcement lands after the point it describes.
+extern "C" void SendVSync(double offsetSeconds);
+extern "C" void RequestIDR();
+extern "C" void SetTracking(
+    unsigned long long targetTimestampNs,
+    float controllerPoseTimeOffsetS,
+    FfiDeviceMotion headMotion,
+    FfiHandData leftHandData,
+    FfiHandData rightHandData,
+    const FfiDeviceMotion* bodyTrackerMotions,
+    int bodyTrackerMotionCount
+);
+extern "C" void RequestDriverResync();
+extern "C" void ShutdownSteamvr();
+
+extern "C" void SetOpenvrProperty(void* instancePtr, FfiOpenvrProperty prop);
+extern "C" void SetOpenvrPropByDeviceID(unsigned long long deviceID, FfiOpenvrProperty prop);
+extern "C" void RegisterButton(void* instancePtr, unsigned long long buttonID);
+extern "C" void SetLocalViewParams(const FfiViewParams params[2]);
+extern "C" void SetBattery(unsigned long long deviceID, float gauge_value, bool is_plugged);
+extern "C" void SetButton(unsigned long long buttonID, FfiButtonValue value);
+extern "C" void SetFrameControllerForwarding(bool enabled, unsigned long long since);
+extern "C" void SetFrameSkeleton(unsigned int hand, unsigned long long timestamp, const FfiHandSkeleton* skeleton);
+extern "C" void SetProximityState(bool headset_is_worn);
+
+extern "C" void InitOpenvrClient();
+extern "C" void ShutdownOpenvrClient();
+extern "C" void SetChaperoneArea(float areaWidth, float areaHeight);
+extern "C" void SetFrameBoundary(float width, float depth, const float* quads, unsigned int count);
+extern "C" void PollFrameBoundary();
+
+// NalParsing.cpp
+void ParseFrameNals(
+    int codec, unsigned char* buf, int len, unsigned long long targetTimestampNs, bool isIdr
+);
+
+// CrashHandler.cpp
+void HookCrashHandler();
+
+// surfxr_server.cpp
+const Settings* Settings_Instance();

@@ -1,0 +1,13 @@
+set(SURFXR_INPUT_CPP "${SURFXR_SURFXR_ROOT}/surfxr/server_openvr/cpp")
+add_executable(surfxr-openvr-boolean-test tests/pc/openvr_boolean_checks.cpp
+  "${SURFXR_INPUT_CPP}/surfxr_server/BooleanInput.cpp")
+add_executable(surfxr-openvr-frame-input-test "${SURFXR_INPUT_CPP}/tools/frame_input_test.cpp")
+foreach(target IN ITEMS surfxr-openvr-boolean-test surfxr-openvr-frame-input-test)
+  target_compile_features(${target} PRIVATE cxx_std_17)
+  target_include_directories(${target} PRIVATE "${SURFXR_INPUT_CPP}" ${SURFXR_PUBLIC_INCLUDE_DIRS})
+  target_include_directories(${target} SYSTEM PRIVATE "${SURFXR_SURFXR_ROOT}/openvr/headers")
+  target_compile_definitions(${target} PRIVATE NOMINMAX WIN32_LEAN_AND_MEAN)
+  target_compile_options(${target} PRIVATE /W4 /utf-8 /UNDEBUG)
+endforeach()
+add_test(NAME openvr-boolean-input COMMAND surfxr-openvr-boolean-test)
+add_test(NAME openvr-frame-input COMMAND surfxr-openvr-frame-input-test)

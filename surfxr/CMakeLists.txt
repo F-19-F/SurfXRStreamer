@@ -1,0 +1,15 @@
+cmake_minimum_required(VERSION 3.16)
+project(surfxr VERSION 1.0.0 LANGUAGES CXX)
+option(SURFXR_BUNDLE_MEDIA "Build private media dependencies through build_viewer.py" OFF)
+include(cmake/public_includes.cmake)
+include_directories(${SURFXR_PUBLIC_INCLUDE_DIRS} ${PROJECT_SOURCE_DIR})
+
+# SurfXR runtime binaries are shared by installation and release packaging.
+include(cmake/localization.cmake)
+include(cmake/offline.cmake)
+if(UNIX AND NOT APPLE)
+  include(cmake/runtime_sdk.cmake)
+endif()
+include(cmake/frame_input.cmake)
+include(cmake/frame.cmake)
+include(cmake/surfxr_desktop.cmake)

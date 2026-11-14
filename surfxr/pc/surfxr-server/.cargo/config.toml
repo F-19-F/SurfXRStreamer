@@ -1,0 +1,8 @@
+[alias]
+xtask = "run -p surfxr_xtask --"
+
+[build]
+target-dir = "../../../build/cargo"
+
+[target.x86_64-pc-windows-msvc]
+rustflags = ["-C", "target-feature=+crt-static"]

@@ -1,0 +1,15 @@
+name: Build only
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Product SemVer (empty uses the source version)'
+        type: string
+        default: ''
+permissions:
+  contents: read
+jobs:
+  build:
+    uses: ./.github/workflows/build-packages.yml
+    with:
+      version: ${{ inputs.version }}

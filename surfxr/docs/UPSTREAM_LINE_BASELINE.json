@@ -1,0 +1,77 @@
+{
+  "surfxr/pc/surfxr-server/surfxr/common/src/inputs.rs": {
+    "lines": 566,
+    "sha256": "71216b129ed18d0c4a8bceffc1f6d8c676e6ad3bf2babb8d5928109aee7b6ca1",
+    "owner": "ALVR upstream import"
+  },
+  "surfxr/pc/surfxr-server/surfxr/server_openvr/cpp/surfxr_server/nvEncodeAPI.h": {
+    "lines": 5286,
+    "sha256": "6d66185203c42ab7c8cea35886e49fba947ee8385e8d206bfd7109fae8c2cc65",
+    "owner": "ALVR upstream import"
+  },
+  "surfxr/pc/surfxr-server/surfxr/server_openvr/cpp/surfxr_server/include/picojson.h": {
+    "lines": 1168,
+    "sha256": "9b94bc14305c68ee21db253a11f435450d597c49447b8f9b1e328162b4ce925f",
+    "owner": "ALVR upstream import"
+  },
+  "surfxr/pc/surfxr-server/surfxr/server_openvr/cpp/platform/win32/NvCodecUtils.h": {
+    "lines": 535,
+    "sha256": "39eb65bf8c79e1e42b239ed678021aeb38814a600241be613de6348e706e1dc7",
+    "owner": "ALVR upstream import"
+  },
+  "surfxr/pc/surfxr-server/surfxr/server_openvr/cpp/platform/win32/NvEncoder.cpp": {
+    "lines": 1058,
+    "sha256": "c5eeee39b1bfb0d18074d57f8fab14a5a083a420d4c0a726b1f2f795d09e8029",
+    "owner": "ALVR upstream import"
+  },
+  "surfxr/pc/surfxr-server/surfxr/server_openvr/cpp/shared/backward.hpp": {
+    "lines": 4496,
+    "sha256": "46d15c657a5c63903ac70c628e7a8761f2db81d572f596bb1cd4fb865b24369d",
+    "owner": "ALVR upstream import"
+  },
+  "surfxr/pc/surfxr-server/surfxr/server_openvr/cpp/shared/amf/public/common/AMFMath.h": {
+    "lines": 1277,
+    "sha256": "563d781de240090ea412daa8a5233f53e196937e587dac895aa2d194592e2f54",
+    "owner": "ALVR upstream import"
+  },
+  "surfxr/pc/surfxr-server/surfxr/server_openvr/cpp/shared/amf/public/common/AMFSTL.cpp": {
+    "lines": 1298,
+    "sha256": "b03cfabd1759ca07ccb140237cc7cc83c40d40d80089e05e1570fdcce02a9a01",
+    "owner": "ALVR upstream import"
+  },
+  "surfxr/pc/surfxr-server/surfxr/server_openvr/cpp/shared/amf/public/common/PropertyStorageExImpl.h": {
+    "lines": 601,
+    "sha256": "b892d0c24bb8a9a11a07b33b7c86f2d7fdc9fa03fb9bb0cfcd63e6251e8b2586",
+    "owner": "ALVR upstream import"
+  },
+  "surfxr/pc/surfxr-server/surfxr/server_openvr/cpp/shared/amf/public/common/Thread.cpp": {
+    "lines": 624,
+    "sha256": "8907a6af4a2ab1bea0fd9e004103a68dfb7624be314d978ea1874128912ab0de",
+    "owner": "ALVR upstream import"
+  },
+  "surfxr/pc/surfxr-server/surfxr/server_openvr/cpp/shared/amf/public/common/Thread.h": {
+    "lines": 721,
+    "sha256": "f9e15aeb1768f630ef2752e95a0c7922c76f8e0f939f986bc3281ceb3b1b74f2",
+    "owner": "ALVR upstream import"
+  },
+  "surfxr/pc/surfxr-server/surfxr/server_openvr/cpp/shared/amf/public/common/TraceAdapter.h": {
+    "lines": 822,
+    "sha256": "5cab6961a41f6476cbf7f0c550153ad332ca38f58a28a7bb3592067fcdda8727",
+    "owner": "ALVR upstream import"
+  },
+  "surfxr/pc/surfxr-server/surfxr/server_openvr/cpp/shared/amf/public/include/core/Context.h": {
+    "lines": 786,
+    "sha256": "f9b4acb784038aad234ddec490e5f6ad6dacc4b14794eb84f3523d56dc3d6dd2",
+    "owner": "ALVR upstream import"
+  },
+  "surfxr/pc/surfxr-server/surfxr/server_openvr/cpp/shared/amf/public/include/core/Platform.h": {
+    "lines": 550,
+    "sha256": "ac98829f332c38d863bc2d035516cdf96e706c93e0cbefa131c649ac987eb9bb",
+    "owner": "ALVR upstream import"
+  },
+  "surfxr/pc/surfxr-server/surfxr/server_openvr/cpp/shared/amf/public/include/core/Variant.h": {
+    "lines": 2097,
+    "sha256": "68d3dcd48b2ffacc93cd97e281d5ed20b7dfafa843ade3a7909c12564e4caad3",
+    "owner": "ALVR upstream import"
+  }
+}

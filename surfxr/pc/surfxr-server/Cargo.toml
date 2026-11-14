@@ -1,0 +1,31 @@
+[workspace]
+# Must be explicit: virtual workspaces default to resolver 1, ignoring the members' edition
+resolver = "3"
+members = ["surfxr/*"]
+
+[workspace.package]
+version = "1.0.0"
+edition = "2024"
+authors = ["SurfXR contributors"]
+license = "GPL-3.0-only"
+
+[workspace.dependencies]
+surfxr_audio = { path = "surfxr/audio" }
+surfxr_common = { path = "surfxr/common" }
+surfxr_events = { path = "surfxr/events" }
+surfxr_filesystem = { path = "surfxr/filesystem" }
+surfxr_gui_common = { path = "surfxr/gui_common" }
+surfxr_packets = { path = "surfxr/packets" }
+surfxr_server_core = { path = "surfxr/server_core"}
+surfxr_server_io = { path = "surfxr/server_io" }
+surfxr_session = { path = "surfxr/session" }
+surfxr_sockets = { path = "surfxr/sockets" }
+surfxr_system_info = { path = "surfxr/system_info" }
+
+[profile.release]
+debug = "limited"
+strip = false
+
+[profile.distribution]
+inherits = "release"
+lto = true

@@ -1,0 +1,8 @@
+#pragma once
+namespace surfxr::launcher {
+inline constexpr const char* client_service = R"surfxr_service(@SURFXR_CLIENT_SERVICE@)surfxr_service";
+inline constexpr const char* dashboard_service = R"surfxr_service(@SURFXR_DASHBOARD_SERVICE@)surfxr_service";
+inline constexpr const char* input_driver_manifest = R"surfxr_manifest(@SURFXR_INPUT_DRIVER_MANIFEST@)surfxr_manifest";
+inline constexpr const char* image_license = R"surfxr_license(@SURFXR_IMAGE_LICENSE@)surfxr_license";
+inline constexpr const char* font_license = R"surfxr_license(@SURFXR_FONT_LICENSE@)surfxr_license";
+}

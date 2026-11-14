@@ -1,0 +1,14 @@
+/.work/
+/build/
+**/target/
+**/deps/
+**/dist/
+**/__pycache__/
+*.pyc
+*.pdb
+*.obj
+*.log
+/release/
+**/session.json
+**/settings.local.json
+/.vscode/

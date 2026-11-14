@@ -1,0 +1,260 @@
+#include "EncodePipelineNvEnc.h"
+#include "surfxr_server/Logger.h"
+#include "surfxr_server/bindings.h"
+#include "ffmpeg_helper.h"
+#include <SURFXR-common/packet_types.h>
+#include <chrono>
+#include <memory>
+
+extern "C" {
+#include <libavcodec/avcodec.h>
+#include <libavutil/opt.h>
+}
+
+namespace {
+
+const char* encoder(SURFXR_CODEC codec) {
+    switch (codec) {
+    case SURFXR_CODEC_H264:
+        return "h264_nvenc";
+    case SURFXR_CODEC_HEVC:
+        return "hevc_nvenc";
+    case SURFXR_CODEC_AV1:
+        return "av1_nvenc";
+    }
+    throw std::runtime_error("invalid codec " + std::to_string(codec));
+}
+
+// NvEnc takes an opaque-alpha format, so drop the alpha channel while keeping
+// the channel order of the source. Picking the wrong one here is silent: the
+// encode succeeds and ships swapped red and blue.
+AVPixelFormat nvenc_surface_format(AVPixelFormat inputFormat) {
+    switch (inputFormat) {
+    case AV_PIX_FMT_BGRA:
+        return AV_PIX_FMT_BGR0;
+    case AV_PIX_FMT_RGBA:
+        return AV_PIX_FMT_RGB0;
+    case AV_PIX_FMT_BGR0:
+    case AV_PIX_FMT_RGB0:
+        return inputFormat;
+    default:
+        throw std::runtime_error(
+            std::string("no NvEnc surface format for input pixel format ")
+            + std::to_string((int)inputFormat)
+        );
+    }
+}
+
+void set_hwframe_ctx(AVCodecContext* ctx, AVBufferRef* hw_device_ctx, AVPixelFormat surfaceFormat) {
+    AVBufferRef* hw_frames_ref;
+    AVHWFramesContext* frames_ctx = NULL;
+    int err = 0;
+
+    if (!(hw_frames_ref = av_hwframe_ctx_alloc(hw_device_ctx))) {
+        throw std::runtime_error("Failed to create CUDA frame context.");
+    }
+    frames_ctx = (AVHWFramesContext*)(hw_frames_ref->data);
+    frames_ctx->format = AV_PIX_FMT_CUDA;
+    frames_ctx->sw_format = surfaceFormat;
+    frames_ctx->width = ctx->width;
+    frames_ctx->height = ctx->height;
+    if ((err = av_hwframe_ctx_init(hw_frames_ref)) < 0) {
+        av_buffer_unref(&hw_frames_ref);
+        throw surfxr::AvException("Failed to initialize CUDA frame context:", err);
+    }
+    ctx->hw_frames_ctx = av_buffer_ref(hw_frames_ref);
+    if (!ctx->hw_frames_ctx)
+        err = AVERROR(ENOMEM);
+
+    av_buffer_unref(&hw_frames_ref);
+}
+
+// Last target the bitrate manager delivered; see initEncoding.
+int64_t last_known_bitrate_bps = 0;
+
+} // namespace
+surfxr::EncodePipelineNvEnc::EncodePipelineNvEnc(
+    HWContext& vk_ctx, VkContext& v_ctx, VkFrame& input_frame, uint32_t width, uint32_t height
+)
+    : v_ctx(v_ctx)
+    , frame_ctx(vk_ctx.avCtx, input_frame.imageInfo()) {
+    // The surface format has to follow the output image's channel order. A
+    // mismatch still encodes successfully, with red and blue swapped.
+    auto input_frame_ctx = (AVHWFramesContext*)frame_ctx.ctx->data;
+    auto surface_format = nvenc_surface_format(input_frame_ctx->sw_format);
+
+    int err;
+    vk_frame = input_frame.make_av_frame(frame_ctx);
+
+    err = av_hwdevice_ctx_create_derived(&hw_ctx, AV_HWDEVICE_TYPE_CUDA, vk_ctx.avCtx, 0);
+    if (err < 0) {
+        throw surfxr::AvException("Failed to create a CUDA device:", err);
+    }
+
+    const auto* settings = Settings_Instance();
+
+    auto codec_id = SURFXR_CODEC(settings->m_codec);
+    const char* encoder_name = encoder(codec_id);
+    const AVCodec* codec = avcodec_find_encoder_by_name(encoder_name);
+    if (codec == nullptr) {
+        throw std::runtime_error(std::string("Failed to find encoder ") + encoder_name);
+    }
+
+    encoder_ctx = avcodec_alloc_context3(codec);
+    if (not encoder_ctx) {
+        throw std::runtime_error("failed to allocate NvEnc encoder");
+    }
+
+    switch (codec_id) {
+    case SURFXR_CODEC_H264:
+        switch (settings->m_entropyCoding) {
+        case SURFXR_CABAC:
+            av_opt_set(encoder_ctx->priv_data, "coder", "ac", 0);
+            break;
+        case SURFXR_CAVLC:
+            av_opt_set(encoder_ctx->priv_data, "coder", "vlc", 0);
+            break;
+        }
+        break;
+    case SURFXR_CODEC_HEVC:
+        break;
+    case SURFXR_CODEC_AV1:
+        break;
+    }
+
+    switch (settings->m_rateControlMode) {
+    case SURFXR_CBR:
+        av_opt_set(encoder_ctx->priv_data, "rc", "cbr", 0);
+        break;
+    case SURFXR_VBR:
+        av_opt_set(encoder_ctx->priv_data, "rc", "vbr", 0);
+        break;
+    }
+
+    if (codec_id == SURFXR_CODEC_H264) {
+        switch (settings->m_h264Profile) {
+        case SURFXR_H264_PROFILE_BASELINE:
+            av_opt_set(encoder_ctx->priv_data, "profile", "baseline", 0);
+            break;
+        case SURFXR_H264_PROFILE_MAIN:
+            av_opt_set(encoder_ctx->priv_data, "profile", "main", 0);
+            break;
+        default:
+        case SURFXR_H264_PROFILE_HIGH:
+            av_opt_set(encoder_ctx->priv_data, "profile", "high", 0);
+            break;
+        }
+    }
+
+    char preset[] = "p0";
+    // replace 0 with preset number
+    preset[1] += settings->m_nvencQualityPreset;
+    av_opt_set(encoder_ctx->priv_data, "preset", preset, 0);
+
+    if (settings->m_nvencAdaptiveQuantizationMode == 1) {
+        av_opt_set_int(encoder_ctx->priv_data, "spatial_aq", 1, 0);
+    } else if (settings->m_nvencAdaptiveQuantizationMode == 2) {
+        av_opt_set_int(encoder_ctx->priv_data, "temporal_aq", 1, 0);
+    }
+
+    if (settings->m_nvencEnableWeightedPrediction) {
+        av_opt_set_int(encoder_ctx->priv_data, "weighted_pred", 1, 0);
+    }
+
+    av_opt_set_int(encoder_ctx->priv_data, "tune", settings->m_nvencTuningPreset, 0);
+    av_opt_set_int(encoder_ctx->priv_data, "zerolatency", 1, 0);
+    // Delay isn't actually a delay instead its how many surfaces to encode at a time
+    av_opt_set_int(encoder_ctx->priv_data, "delay", 1, 0);
+    av_opt_set_int(encoder_ctx->priv_data, "forced-idr", 1, 0);
+    // work around ffmpeg default not working for older NVIDIA cards
+    av_opt_set_int(encoder_ctx->priv_data, "b_ref_mode", 0, 0);
+
+    encoder_ctx->pix_fmt = AV_PIX_FMT_CUDA;
+    encoder_ctx->width = width;
+    encoder_ctx->height = height;
+    encoder_ctx->time_base = { 1, (int)1e9 };
+    encoder_ctx->framerate = AVRational { settings->m_refreshRate, 1 };
+    encoder_ctx->sample_aspect_ratio = AVRational { 1, 1 };
+    encoder_ctx->max_b_frames = 0;
+    encoder_ctx->gop_size = INT16_MAX;
+    encoder_ctx->color_range = AVCOL_RANGE_JPEG;
+    encoder_ctx->color_primaries = AVCOL_PRI_BT709;
+    encoder_ctx->color_trc = AVCOL_TRC_IEC61966_2_1;
+    encoder_ctx->colorspace = AVCOL_SPC_BT709;
+    // The manager reports a target only once per change, so a rebuild mid
+    // session has to reuse the last one.
+    auto params = GetDynamicEncoderParams();
+    if (!params.updated || params.bitrate_bps <= 0) {
+        params.bitrate_bps = last_known_bitrate_bps > 0 ? last_known_bitrate_bps : 30'000'000;
+    }
+    params.updated = true;
+    params.framerate = settings->m_refreshRate;
+    Info("NvEnc init bitrate: %.1f Mbps\n", params.bitrate_bps / 1e6);
+    SetParams(params);
+
+    set_hwframe_ctx(encoder_ctx, hw_ctx, surface_format);
+
+    err = avcodec_open2(encoder_ctx, codec, NULL);
+    if (err < 0) {
+        throw surfxr::AvException("Cannot open video encoder codec:", err);
+    }
+
+    hw_frame = av_frame_alloc();
+}
+
+surfxr::EncodePipelineNvEnc::~EncodePipelineNvEnc() {
+    av_buffer_unref(&hw_ctx);
+    av_frame_free(&hw_frame);
+}
+
+void surfxr::EncodePipelineNvEnc::SetParams(FfiDynamicEncoderParams params) {
+    if (!params.updated) {
+        return;
+    }
+    // Survives encoder rebuilds; see the note on the variable.
+    last_known_bitrate_bps = params.bitrate_bps;
+    encoder_ctx->bit_rate = params.bitrate_bps;
+    encoder_ctx->framerate = AVRational { int(params.framerate * 1000), 1000 };
+    encoder_ctx->rc_buffer_size = encoder_ctx->bit_rate / params.framerate;
+    encoder_ctx->rc_max_rate = encoder_ctx->bit_rate;
+    encoder_ctx->rc_initial_buffer_occupancy = encoder_ctx->rc_buffer_size;
+}
+
+void surfxr::EncodePipelineNvEnc::PushFrame(uint64_t targetTimestampNs, bool idr) {
+    AVVkFrame* vkf = reinterpret_cast<AVVkFrame*>(vk_frame->data[0]);
+    vkf->sem_value[0]++;
+
+    VkTimelineSemaphoreSubmitInfo timelineInfo = {};
+    timelineInfo.sType = VK_STRUCTURE_TYPE_TIMELINE_SEMAPHORE_SUBMIT_INFO;
+    timelineInfo.signalSemaphoreValueCount = 1;
+    timelineInfo.pSignalSemaphoreValues = &vkf->sem_value[0];
+
+    vk::PipelineStageFlags waitStage = vk::PipelineStageFlagBits::eBottomOfPipe;
+
+    vk::SubmitInfo submitInfo = {};
+    submitInfo.pNext = &timelineInfo;
+    // submitInfo.waitSemaphoreCount = 1;
+    // submitInfo.pWaitSemaphores = &r->GetOutput().semaphore;
+    submitInfo.pWaitDstStageMask = &waitStage;
+    submitInfo.signalSemaphoreCount = 1;
+    submitInfo.pSignalSemaphores = reinterpret_cast<vk::Semaphore*>(&vkf->sem[0]);
+    v_ctx.useQueue([&](auto& queue) { queue.submit(submitInfo); });
+
+    int err = av_hwframe_get_buffer(encoder_ctx->hw_frames_ctx, hw_frame, 0);
+    if (err < 0) {
+        throw surfxr::AvException("Failed to allocate CUDA frame", err);
+    }
+    err = av_hwframe_transfer_data(hw_frame, vk_frame.get(), 0);
+    if (err < 0) {
+        throw surfxr::AvException("Failed to transfer Vulkan image to CUDA frame", err);
+    }
+
+    hw_frame->pict_type = idr ? AV_PICTURE_TYPE_I : AV_PICTURE_TYPE_NONE;
+    hw_frame->pts = targetTimestampNs;
+
+    if ((err = avcodec_send_frame(encoder_ctx, hw_frame)) < 0) {
+        throw surfxr::AvException("avcodec_send_frame failed:", err);
+    }
+
+    av_frame_unref(hw_frame);
+}

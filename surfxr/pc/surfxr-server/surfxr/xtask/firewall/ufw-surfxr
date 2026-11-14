@@ -1,0 +1,4 @@
+[surfxr]
+title=SurfXR
+description=Steam Frame desktop and VR streaming
+ports=19943:19946,19950/tcp|19943:19945,19950:19952/udp

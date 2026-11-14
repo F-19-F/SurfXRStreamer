@@ -1,0 +1,44 @@
+{
+  "id": "com.valvesoftware.Steam.Utility.surfxr",
+  "branch": "stable",
+  "sdk": "org.freedesktop.Sdk//25.08",
+  "sdk-extensions": [
+    "org.freedesktop.Sdk.Extension.llvm21",
+    "org.freedesktop.Sdk.Extension.rust-stable"
+  ],
+  "runtime": "com.valvesoftware.Steam",
+  "runtime-version": "stable",
+  "appstream-compose": false,
+  "separate-locales": false,
+  "build-extension": true,
+  "build-options": {
+    "append-path": "/usr/lib/sdk/llvm21/bin:/usr/lib/sdk/rust-stable/bin",
+    "build-args": [ "--share=network", "--filesystem=xdg-data" ],
+    "strip": true,
+    "env": { "RUST_BACKTRACE": "full" }
+  },
+  "finish-args": [
+    "--share=ipc",
+    "--share=network",
+    "--device=all",
+    "--filesystem=home",
+    "--talk-name=org.freedesktop.Notifications"
+  ],
+  "modules": [
+    {
+      "name": "surfxr",
+      "buildsystem": "simple",
+      "build-commands": [
+        "mkdir -p /app/utils/surfxr/bin",
+        "cd surfxr/launcher",
+        "cargo xtask prepare-deps --platform linux --no-nvidia",
+        "cargo xtask build-launcher --release",
+        "mv '/run/build/surfxr/build/surfxr_launcher_linux/SURFXR Launcher' /app/utils/surfxr/bin/surfxr_launcher",
+        " # get read-only errors from following lines - because this is an extension - so leave as comments until someone figures this out",
+        " # install -D dashboard.ico /app/share/icons/surfxr_launcher.ico",
+        " # install -D com.valvesoftware.Steam.Utility.surfxr.desktop /app/share/applications/com.valvesoftware.Steam.Utility.surfxr.desktop"
+      ],
+      "sources": [ { "type": "dir", "path": "../../../" } ]
+    }
+  ]
+}

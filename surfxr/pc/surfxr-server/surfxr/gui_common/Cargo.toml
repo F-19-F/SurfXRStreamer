@@ -1,0 +1,11 @@
+[package]
+name = "surfxr_gui_common"
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
+license.workspace = true
+
+[dependencies]
+surfxr_common.workspace = true
+
+egui = "0.35"

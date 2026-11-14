@@ -1,0 +1,15 @@
+set(SURFXR_PUBLIC_INCLUDE_DIRS
+  "${PROJECT_SOURCE_DIR}/shared/surfxr/include"
+  "${CMAKE_CURRENT_SOURCE_DIR}/frame/input/include"
+  "${PROJECT_SOURCE_DIR}/frame/app/include"
+  "${PROJECT_SOURCE_DIR}/frame/surfxr/include"
+  "${PROJECT_SOURCE_DIR}/frame/discovery/include"
+  "${PROJECT_SOURCE_DIR}/frame/media/include"
+  "${PROJECT_SOURCE_DIR}/frame/preferences/include"
+  "${PROJECT_SOURCE_DIR}/frame/session/include"
+  "${PROJECT_SOURCE_DIR}/frame/tracking/include"
+  "${PROJECT_SOURCE_DIR}/frame/ui/include"
+  "${PROJECT_SOURCE_DIR}/frame/xr/include"
+  "${PROJECT_SOURCE_DIR}/shared/platform/include"
+  "${PROJECT_SOURCE_DIR}/shared/protocol/include"
+)

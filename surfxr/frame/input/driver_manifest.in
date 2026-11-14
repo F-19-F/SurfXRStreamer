@@ -1,0 +1,6 @@
+{
+  "jsonid": "vrdriver",
+  "name": "00_surfxr_exo_input",
+  "alwaysActivate": true,
+  "resourceOnly": false
+}

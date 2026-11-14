@@ -1,0 +1,14 @@
+[package]
+name = "surfxr_events"
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
+license.workspace = true
+
+[dependencies]
+surfxr_common.workspace = true
+surfxr_packets.workspace = true
+surfxr_session.workspace = true
+
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"

@@ -1,0 +1,12 @@
+* -text
+
+surfxr/server_openvr/cpp/surfxr_server/include/** linguist-vendored
+surfxr/server_openvr/cpp/surfxr_server/nvEncodeAPI.h linguist-vendored
+surfxr/server_openvr/cpp/platform/win32/NvCodecUtils.h linguist-vendored
+surfxr/server_openvr/cpp/platform/win32/NvEncoder.cpp linguist-vendored
+surfxr/server_openvr/cpp/platform/win32/NvEncoder.h linguist-vendored
+surfxr/server_openvr/cpp/shared/** linguist-vendored
+# note: some of these folders contain SURFXR code, but only a minor amount
+surfxr/vulkan_layer/layer/** linguist-vendored
+surfxr/vulkan_layer/util/** linguist-vendored
+surfxr/vulkan_layer/wsi/** linguist-vendored

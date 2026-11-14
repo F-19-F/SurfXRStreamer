@@ -1,0 +1,3 @@
+# Keep manifest-path invocations from the repository root out of source modules.
+[build]
+target-dir = "build/cargo"

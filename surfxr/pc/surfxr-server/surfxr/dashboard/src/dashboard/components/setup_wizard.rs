@@ -1,0 +1,175 @@
+use crate::dashboard::ServerRequest;
+use eframe::{
+    egui::{Button, Label, Layout, RichText, Ui},
+    emath::Align,
+};
+
+pub enum SetupWizardRequest {
+    ServerRequest(ServerRequest),
+    Close { finished: bool },
+}
+
+#[derive(Clone, Copy, PartialEq, Eq)]
+enum Page {
+    Welcome = 0,
+    ResetSettings = 1,
+    HardwareRequirements = 2,
+    SoftwareRequirements = 3,
+    Firewall = 4,
+    Recommendations = 5,
+    Finished = 6,
+}
+
+fn index_to_page(index: usize) -> Page {
+    match index {
+        0 => Page::Welcome,
+        1 => Page::ResetSettings,
+        2 => Page::HardwareRequirements,
+        3 => Page::SoftwareRequirements,
+        4 => Page::Firewall,
+        5 => Page::Recommendations,
+        6 => Page::Finished,
+        _ => panic!("Invalid page index"),
+    }
+}
+
+fn page_content(
+    ui: &mut Ui,
+    subtitle: &str,
+    paragraph: &str,
+    interactible_content: impl FnMut(&mut Ui),
+) {
+    ui.with_layout(Layout::right_to_left(Align::Min), |ui| {
+        ui.add_space(60.0);
+        ui.with_layout(Layout::left_to_right(Align::Min), |ui| {
+            ui.add_space(60.0);
+            ui.with_layout(Layout::top_down(Align::LEFT), |ui| {
+                ui.add_space(15.0);
+                ui.heading(RichText::new(crate::i18n::tr(subtitle)).size(20.0));
+                ui.add(Label::new(RichText::new(crate::i18n::tr(paragraph)).size(14.0)).wrap());
+                ui.add_space(30.0);
+                ui.vertical_centered(interactible_content);
+            });
+        })
+    });
+}
+
+pub struct SetupWizard {
+    page: Page,
+}
+
+impl SetupWizard {
+    pub fn new() -> Self {
+        Self {
+            page: Page::Welcome,
+        }
+    }
+
+    pub fn ui(&mut self, ui: &mut Ui) -> Option<SetupWizardRequest> {
+        let mut request = None;
+
+        ui.horizontal(|ui| {
+            ui.add_space(60.0);
+            ui.vertical(|ui| {
+                ui.add_space(30.0);
+                ui.heading(RichText::new(crate::i18n::tr("Welcome to SurfXR")).size(30.0));
+                ui.add_space(5.0);
+            });
+            ui.with_layout(Layout::right_to_left(Align::Center), |ui| {
+                ui.add_space(15.0);
+                crate::i18n::settings_selector(ui);
+                if ui.button(crate::i18n::tr("Close")).clicked() {
+                    request = Some(SetupWizardRequest::Close { finished: false });
+                }
+            })
+        });
+        ui.separator();
+        match &self.page {
+            Page::Welcome => page_content(
+                ui,
+                "Set up SurfXR for desktop and VR streaming.",
+                "",
+                |_| (),
+            ),
+            Page::ResetSettings => page_content(
+                ui,
+                "Reset settings",
+                "Your existing settings are kept when updating. Reset only if you want to start over.",
+                |ui| {
+                    if ui.button(crate::i18n::tr("Reset settings")).clicked() {
+                        request = Some(SetupWizardRequest::ServerRequest(
+                            ServerRequest::UpdateSession(Box::default()),
+                        ));
+                    }
+                },
+            ),
+            Page::HardwareRequirements => page_content(
+                ui,
+                "Hardware requirements",
+                r"SURFXR requires a dedicated and recent graphics card. Low-end Intel integrated graphics may fail to work.
+Make sure you have at least one output audio device.",
+                |_| (),
+            ),
+            Page::SoftwareRequirements => page_content(
+                ui,
+                "Software requirements",
+                if cfg!(windows) {
+                    r"Headset voice uses Steam Streaming Microphone by default. Select it as the microphone in your game or voice app. You can turn it off or choose another installed device in Settings > Advanced > Audio."
+                } else if cfg!(target_os = "linux") {
+                    r"You need the PipeWire (0.3.49+ version) audio system to be able to stream audio and use microphone."
+                } else {
+                    r"Unsupported OS"
+                },
+                |_| (),
+            ),
+            Page::Firewall => page_content(
+                ui,
+                "Firewall",
+                r"To communicate with the headset, some firewall rules need to be set.
+This requires administrator rights!",
+                |ui| {
+                    if ui.button(crate::i18n::tr("Add firewall rules")).clicked() {
+                        request = Some(SetupWizardRequest::ServerRequest(
+                            ServerRequest::AddFirewallRules,
+                        ));
+                    }
+                },
+            ),
+            Page::Recommendations => page_content(
+                ui,
+                "Recommendations",
+                r"SURFXR supports multiple types of PC hardware and headsets but not all might work correctly with default settings. Please try tweaking different settings like resolution, bitrate, encoder and others if your SURFXR experience is not optimal.",
+                |_| (),
+            ),
+            Page::Finished => page_content(
+                ui,
+                "Finished",
+                r#"You can always restart this setup wizard from the "Installation" tab on the left."#,
+                |_| (),
+            ),
+        };
+
+        ui.with_layout(Layout::bottom_up(Align::RIGHT), |ui| {
+            ui.add_space(30.0);
+            ui.horizontal(|ui| {
+                ui.add_space(15.0);
+                if self.page == Page::Finished {
+                    if ui.button(crate::i18n::tr("Finish")).clicked() {
+                        request = Some(SetupWizardRequest::Close { finished: true });
+                    }
+                } else if ui.button(crate::i18n::tr("Next")).clicked() {
+                    self.page = index_to_page(self.page as usize + 1);
+                }
+                if ui
+                    .add_visible(self.page != Page::Welcome, Button::new(crate::i18n::tr("Back")))
+                    .clicked()
+                {
+                    self.page = index_to_page(self.page as usize - 1);
+                }
+            });
+            ui.separator();
+        });
+
+        request
+    }
+}

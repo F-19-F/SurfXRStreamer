@@ -1,0 +1,18 @@
+# Frame presentation owns translations and its embedded OFL font subset.
+add_library(surfxr-localization frame/ui/localization.cpp frame/ui/steamvr_language.cpp frame/ui/ui_fonts.cpp)
+target_compile_features(surfxr-localization PUBLIC cxx_std_17)
+target_include_directories(surfxr-localization PUBLIC ${SURFXR_PUBLIC_INCLUDE_DIRS})
+if(MSVC)
+  target_compile_options(surfxr-localization PUBLIC /utf-8)
+endif()
+if(UNIX AND NOT APPLE)
+  find_package(PkgConfig REQUIRED)
+  pkg_check_modules(FRAME_TEXT REQUIRED IMPORTED_TARGET pangocairo fontconfig json-c)
+  file(READ "${PROJECT_SOURCE_DIR}/frame/ui/fonts/SurfXRUI.otf" _font HEX)
+  string(REGEX REPLACE "(..)" "0x\\1," _font "${_font}")
+  file(WRITE "${PROJECT_BINARY_DIR}/generated/font_data.hpp"
+    "static constexpr unsigned char font_data[]={${_font}};\n")
+  target_include_directories(surfxr-localization PRIVATE "${PROJECT_BINARY_DIR}/generated")
+  target_compile_definitions(surfxr-localization PUBLIC SURFXR_FRAME_TEXT=1)
+  target_link_libraries(surfxr-localization PUBLIC PkgConfig::FRAME_TEXT)
+endif()

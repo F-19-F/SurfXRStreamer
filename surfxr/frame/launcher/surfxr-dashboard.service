@@ -1,0 +1,14 @@
+[Unit]
+Description=SurfXR SteamVR dashboard
+BindsTo=steamvr.service
+After=steamvr.service surfxr-client.service
+Wants=surfxr-client.service
+
+[Service]
+ExecStart="%h/.local/share/surfxr-client/bin/surfxr-dashboard"
+Restart=on-failure
+RestartSec=3
+Slice=session.slice
+
+[Install]
+WantedBy=steamvr.service

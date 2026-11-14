@@ -1,0 +1,15 @@
+[Unit]
+Description=SurfXR connection manager
+
+[Service]
+Type=simple
+ExecStart="%h/.local/share/surfxr-client/launcher/surfxr-client" daemon
+Restart=on-failure
+RestartSec=3
+KillMode=mixed
+TimeoutStopSec=20
+UMask=0077
+Slice=session.slice
+
+[Install]
+WantedBy=default.target

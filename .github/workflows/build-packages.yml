@@ -1,0 +1,101 @@
+name: Build packages (shared)
+on:
+  workflow_call:
+    inputs:
+      version:
+        type: string
+        default: ''
+    outputs:
+      version:
+        value: ${{ jobs.metadata.outputs.version }}
+permissions:
+  contents: read
+env:
+  PYTHONDONTWRITEBYTECODE: '1'
+jobs:
+  metadata:
+    runs-on: ubuntu-24.04
+    outputs:
+      version: ${{ steps.version.outputs.version }}
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          persist-credentials: false
+      - id: version
+        env:
+          SURFXR_RELEASE_VERSION: ${{ inputs.version }}
+        run: python3 scripts/build/release_version.py --github-output "$GITHUB_OUTPUT"
+  frame:
+    needs: metadata
+    runs-on: ubuntu-24.04-arm
+    timeout-minutes: 90
+    env:
+      SURFXR_RELEASE_VERSION: ${{ needs.metadata.outputs.version }}
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          submodules: recursive
+          persist-credentials: false
+      - run: bash scripts/ci/prepare-frame.sh
+      - name: Build, validate and package Frame ARM64
+        run: |
+          export TMPDIR="$PWD/build/tmp"
+          python3 scripts/build/build_viewer.py --local \
+            --build-directory "$PWD/build/frame/linux-arm64" \
+            --cmake-argument="-DOPENXR_INCLUDE_DIR=$PWD/build/deps/openxr-sdk/include" \
+            --cmake-argument=-DSURFXR_BUNDLE_MEDIA=ON \
+            --jobs 4 --build-timeout 3600 \
+            --package-release release/SurfXR-SteamFrame.zip
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: frame-package
+          path: release/SurfXR-SteamFrame.zip*
+          if-no-files-found: error
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        if: always()
+        with:
+          name: frame-validation
+          path: |
+            build/frame/linux-arm64/validation.json
+            build/frame/linux-arm64/media-dependencies/build.log
+  windows:
+    needs: [metadata, frame]
+    runs-on: windows-2022
+    timeout-minutes: 120
+    env:
+      SURFXR_RELEASE_VERSION: ${{ needs.metadata.outputs.version }}
+      SURFXR_RELEASE_ID: ${{ needs.metadata.outputs.version }}
+      CARGO_HOME: ${{ github.workspace }}/build/cargo-home
+      CARGO_TARGET_DIR: ${{ github.workspace }}/build/cargo
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          submodules: recursive
+          persist-credentials: false
+      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5
+        with:
+          python-version: '3.12'
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
+        with:
+          name: frame-package
+          path: release
+      - run: ./scripts/ci/prepare-windows.ps1
+      - name: Build Windows and package portable + Setup
+        run: ./scripts/Build-PC.ps1 -CI -PrepareDependencies -Package -Setup -FrameArchive ./release/SurfXR-SteamFrame.zip
+      - name: Tooling and Dashboard regression checks
+        run: |
+          python -B scripts/build/check_structure.py
+          if ($LASTEXITCODE) { throw 'Structure check failed' }
+          python -B -m unittest discover -s scripts/build -p 'test_*.py'
+          if ($LASTEXITCODE) { throw 'Tooling tests failed' }
+          Push-Location surfxr/pc/surfxr-server
+          cargo test -p surfxr_common -p surfxr_dashboard -p surfxr_xtask --locked
+          if ($LASTEXITCODE) { throw 'Cargo tests failed' }
+          Pop-Location
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: windows-packages
+          path: |
+            release/SurfXR-Windows-portable.zip*
+            release/SurfXR-Windows-setup.exe*
+          if-no-files-found: error

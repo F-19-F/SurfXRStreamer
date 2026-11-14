@@ -1,0 +1,91 @@
+# SSH stdin adapter for native uninstall and already-uninstalled residual data.
+# Not installed on Frame. No binary transfer, interpreter installation or pairing.
+set -Eeu
+trap 'printf "{\"ok\":false,\"error\":\"frame_removal_failed\"}\n"; exit 1' ERR
+fail() { printf '{"ok":false,"error":"%s"}\n' "$1"; exit 1; }
+action=${1:-}
+case "$action" in uninstall|purge) ;; *) fail invalid_deployment_command ;; esac
+case "$HOME" in /*) ;; *) fail absolute_user_path_required ;; esac
+frame_home=$(cd -- "$HOME" && pwd -P) || fail installation_path_unverified
+app="$frame_home/.local/share/surfxr-client"
+native="$app/launcher/surfxr-client"
+shortcut="$frame_home/.local/bin/surfxr-client"
+config="${XDG_CONFIG_HOME:-$frame_home/.config}/surfxr-client"
+state="${XDG_STATE_HOME:-$frame_home/.local/state}/surfxr-client"
+cache="$frame_home/.cache/surfxr-client"
+xdg_cache="${XDG_CACHE_HOME:-$frame_home/.cache}/surfxr-client"
+export XDG_RUNTIME_DIR="${XDG_RUNTIME_DIR:-/run/user/$(id -u)}"
+export DBUS_SESSION_BUS_ADDRESS="${DBUS_SESSION_BUS_ADDRESS:-unix:path=$XDG_RUNTIME_DIR/bus}"
+runtime="$XDG_RUNTIME_DIR/surfxr-client"
+services="$frame_home/.config/systemd/user"
+data_root() {
+    case "$1" in /*/surfxr-client) ;; *) fail purge_path_unverified ;; esac
+    [ ! -L "$1" ] || fail purge_path_unverified
+    if [ -e "$1" ]; then
+        [ -d "$1" ] && [ -O "$1" ] || fail purge_path_unverified
+    fi
+}
+[ ! -L "$app" ] && [ "$(realpath -m -- "$app")" = "$app" ] || fail installation_path_unverified
+if [ -e "$shortcut" ] || [ -L "$shortcut" ]; then
+    [ -L "$shortcut" ] && [ "$(readlink -- "$shortcut")" = "$native" ] || fail installed_shortcut_unverified
+fi
+if [ "$action" = purge ]; then
+    for root in "$config" "$state" "$cache" "$xdg_cache" "$runtime"; do data_root "$root"; done
+fi
+if [ -x "$native" ] && [ ! -L "$native" ]; then
+    # The installed native owner retains its IPC shutdown and dashboard identity checks.
+    if response=$("$native" --deploy "$action" <<<'{}'); then
+        printf '%s\n' "$response"
+        exit 0
+    elif [ -e "$app" ] || [ -L "$app" ] ||
+         [[ ! $response =~ \"error\"[[:space:]]*:[[:space:]]*\"frame_operation_failed\" ]]; then
+        printf '%s\n' "$response"
+        exit 1
+    fi
+    # Older clients could finish removal then fail canonical(/proc/self/exe).
+    # Continue only after the app is absent; validate and confirm residual cleanup.
+fi
+[ ! -e "$app" ] && [ ! -L "$app" ] || fail frame_uninstaller_missing
+data_root "$runtime"
+if [ ! -d "$runtime" ]; then (umask 077; mkdir -p -- "$runtime") || fail private_directory_failed; fi
+mode=$(stat -c '%a' -- "$runtime") || fail directory_not_private
+[ $((8#$mode & 077)) -eq 0 ] || fail directory_not_private
+systemctl --user stop surfxr-dashboard.service surfxr-client.service >/dev/null 2>&1 || true
+lock_file() {
+    local file="$runtime/$1" mode
+    [ ! -L "$file" ] || fail lock_not_private
+    if [ -e "$file" ]; then
+        [ -f "$file" ] && [ -O "$file" ] || fail lock_not_private
+        mode=$(stat -c '%a' -- "$file") || fail lock_not_private
+        [ $((8#$mode & 077)) -eq 0 ] || fail lock_not_private
+    fi
+}
+umask 077
+for name in service.lock viewer.lock overlay.lock; do lock_file "$name"; done
+exec 7>>"$runtime/service.lock" 8>>"$runtime/viewer.lock" 9>>"$runtime/overlay.lock"
+flock -n 7 && flock -n 8 && flock -n 9 || fail instance_active
+# Recheck under the stable native locks; never remove a concurrent reinstall.
+[ ! -e "$app" ] && [ ! -L "$app" ] || fail instance_active
+reload=false
+for name in surfxr-client.service surfxr-dashboard.service; do
+    if [ -e "$services/$name" ] || [ -L "$services/$name" ]; then reload=true; fi
+done
+systemctl --user disable surfxr-dashboard.service surfxr-client.service >/dev/null 2>&1 || true
+rm -f -- "$shortcut" "$frame_home/.local/share/applications/surfxr-client.desktop" \
+    "$services/surfxr-client.service" "$services/surfxr-dashboard.service" || fail frame_removal_failed
+if [ "$action" = purge ]; then
+    for root in "$config" "$state" "$cache" "$xdg_cache"; do data_root "$root"; done
+    rm -rf -- "$config" "$state" "$cache" "$xdg_cache" || fail frame_removal_failed
+    shopt -s nullglob dotglob
+    for entry in "$runtime"/*; do
+        case "${entry##*/}" in service.lock|viewer.lock|overlay.lock|input-driver.lock|system-input.sock) continue ;; esac
+        rm -rf -- "$entry" || fail frame_removal_failed
+    done
+    for root in "$config" "$state" "$cache" "$xdg_cache"; do
+        [ ! -e "$root" ] && [ ! -L "$root" ] || fail frame_removal_failed
+    done
+fi
+if $reload; then systemctl --user daemon-reload >/dev/null 2>&1 || fail frame_user_service_failed; fi
+preserved=true
+[ "$action" != purge ] || preserved=false
+printf '{"ok":true,"uninstalled":true,"configuration_preserved":%s,"state":"stopped"}\n' "$preserved"

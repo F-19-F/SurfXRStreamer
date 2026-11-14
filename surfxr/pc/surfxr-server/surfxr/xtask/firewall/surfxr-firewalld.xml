@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<service>
+  <short>SurfXR</short>
+  <description>Steam Frame desktop and VR streaming.</description>
+  <port protocol="tcp" port="19943-19946"/>
+  <port protocol="tcp" port="19950"/>
+  <port protocol="udp" port="19943-19945"/>
+  <port protocol="udp" port="19950-19952"/>
+</service>

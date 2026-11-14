@@ -1,0 +1,11 @@
+[Desktop Entry]
+Version=1.0
+Type=Application
+Name=SURFXR
+GenericName=Game
+Comment=SURFXR is an open source remote VR display which allows playing SteamVR games on a standalone headset such as Gear VR or Oculus Go/Quest.
+Exec=surfxr_dashboard
+Icon=surfxr
+Categories=Game;
+StartupNotify=true
+StartupWMClass=surfxr.dashboard

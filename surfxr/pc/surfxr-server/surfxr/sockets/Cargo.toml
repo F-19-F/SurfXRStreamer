@@ -1,0 +1,20 @@
+[package]
+name = "surfxr_sockets"
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
+license.workspace = true
+
+[features]
+trace-performance = ["profiling/profile-with-tracy"]
+
+[dependencies]
+surfxr_common.workspace = true
+surfxr_packets.workspace = true
+surfxr_session.workspace = true
+
+bincode = { version = "2", features = ["serde"] }
+profiling = { version = "1", optional = true }
+serde = "1"
+serde_json = "1"
+socket2 = "0.6"
