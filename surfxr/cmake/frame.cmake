@@ -258,10 +258,11 @@ if(SURFXR_FFMPEG_ROOT AND UNIX AND NOT APPLE)
   # in the offline test environment, never in shipped executable RPATHs.
   if(NOT CMAKE_CROSSCOMPILING AND FRAME_OPENVR_LIBRARY)
     get_filename_component(_openvr_test_library_dir "${FRAME_OPENVR_LIBRARY}" DIRECTORY)
+    get_filename_component(_openxr_test_library_dir "${FRAME_OPENXR_LOADER}" DIRECTORY)
     foreach(_test dashboard-offline viewer-offline)
       if(TEST ${_test})
         set_property(TEST ${_test} APPEND PROPERTY ENVIRONMENT
-          "LD_LIBRARY_PATH=${_openvr_test_library_dir}:$ENV{LD_LIBRARY_PATH}")
+          "LD_LIBRARY_PATH=${_openvr_test_library_dir}:${_openxr_test_library_dir}:$ENV{LD_LIBRARY_PATH}")
       endif()
     endforeach()
   endif()

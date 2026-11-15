@@ -48,6 +48,10 @@ def build(project, args):
         cmake_arguments = list(args.cmake_argument)
         if media:
             cmake_arguments.append("-DSURFXR_FFMPEG_ROOT=" + str(media))
+            if not any(arg.startswith("-DSURFXR_EXO_SYSROOT=") for arg in args.cmake_argument):
+                from frame_xr_link import prepare as prepare_xr
+                loader, headers = prepare_xr(project.parent, directory, args.cmake_argument, args.jobs)
+                cmake_arguments += ["-DFRAME_OPENXR_LOADER=" + str(loader), "-DOPENXR_INCLUDE_DIR=" + str(headers)]
         for script in ("compile_foveation_shaders.py", "compile_desktop_shaders.py",
                        "compile_image_enhancement_shaders.py"):
             run(["python3", project.parent / "scripts/shaders" / script, "--check"])
@@ -73,6 +77,11 @@ def build(project, args):
                 raise RuntimeError("Mixed executable architectures")
             report["architecture"] = architecture
             report["binary_sha256"][name] = hashlib.sha256(data).hexdigest()
+            if media:
+                dynamic = run(["readelf", "-d", directory / name])
+                needed = re.findall(r"\(NEEDED\).*?\[(.*?)\]", dynamic)
+                if any(lib.startswith("libopenxr_loader.so.") for lib in needed):
+                    raise RuntimeError("Release must link SteamVR's unversioned OpenXR loader")
         report["optional_binary_sha256"] = ({DRIVER: hashlib.sha256((directory / DRIVER).read_bytes()).hexdigest()}
                                              if (directory / DRIVER).is_file() else {})
         report["viewer_build_validated"] = report["native_launcher_build_validated"] = True

@@ -26,6 +26,6 @@ def source_manifest(project: Path) -> list[str]:
     for directory in ("shaders", "fonts", "transport", "tests"):
         names.update(path.relative_to(repository).as_posix()
                      for path in (repository / "scripts" / directory).rglob("*.py"))
-    for name in ("build_viewer.py", "build_local.py", "project_manifest.py", "frame_runtime.py", "release_version.py"):
+    for name in ("build_viewer.py", "build_local.py", "project_manifest.py", "frame_runtime.py", "frame_xr_link.py", "release_version.py"):
         names.add("scripts/build/" + name)
     return sorted(names)

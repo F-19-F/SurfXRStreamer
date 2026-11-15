@@ -35,6 +35,8 @@ When upgrading the PC service, install the complete matching payload through `su
 
 Build/offline validation does not certify headset rendering or wearer acceptance. Record those separately before a production release.
 
+OpenXR is provided by SteamVR on the headset, not bundled in the release. The CI link reference uses SteamVR's unversioned `libopenxr_loader.so` name; linking Ubuntu's `libopenxr_loader.so.1` produces a package that passes tests on Ubuntu but exits 127 on Frame before connecting. The local release builder checks the final ELF dependencies to prevent that mismatch. See [WSL_BUILD.md](WSL_BUILD.md) for the build-only reference; no binary patching or additional installed library is involved.
+
 ## GitHub Actions
 
 The repository provides two manual Actions. Push the workflows to the default branch before opening **Actions → Run workflow**.
