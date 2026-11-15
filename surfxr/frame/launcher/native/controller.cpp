@@ -9,8 +9,7 @@ Controller::Controller(Paths paths, std::function<Json()> reader) : paths_(std::
 }
 Controller::~Controller() { shutdown(); }
 Json Controller::network() {
-  if (network_.is(json_type_null) || Clock::now() >= network_deadline_) { network_ = network_reader_(); network_deadline_ = Clock::now() + std::chrono::seconds(5); }
-  return network_;
+  return network_reader_();
 }
 void Controller::update_startup(const Json& progress){
   const auto sample=progress["heartbeat_monotonic_ms"];

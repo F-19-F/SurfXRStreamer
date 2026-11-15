@@ -77,7 +77,7 @@ void Controller::poll_search() {
   auto mode = search_mode_; search_mode_.clear();
   if (preferred_search_ && !found_.size()) { preferred_search_ = false; auto r = discover(mode); if (!r["ok"].boolean()) { state_ = "error"; message_ = r["message"].text(); } return; }
   if (found_.size() != 1) { state_ = "error"; message_ = found_.size() ? "Multiple PCs or links found. Choose a PC address before connecting." : search_message_; return; }
-  const bool scanned = !preferred_search_; network_deadline_ = {};
+  const bool scanned = !preferred_search_;
   auto response = start(mode, found_.at(0), scanned);
   if (!response["ok"].boolean()) { state_ = "error"; message_ = response["message"].text(); }
 }

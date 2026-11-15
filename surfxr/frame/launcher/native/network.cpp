@@ -17,7 +17,11 @@ bool subnet(uint32_t host, uint32_t source, int prefix) {
   const uint32_t mask = prefix ? (0xffffffffu << (32 - prefix)) : 0;
   return (host & mask) == (source & mask);
 }
-Json records(const std::string& text) { try { auto value = Json::parse(text); return value.is(json_type_array) ? value : Json::array(); } catch (...) { return Json::array(); } }
+Json records(const std::string& text) {
+  auto value = Json::parse(text);
+  if (!value.is(json_type_array)) throw std::runtime_error("network_records_invalid");
+  return value;
+}
 }
 bool same_subnet(const std::string& host, const Json& interface) {
   try { return subnet(address_number(host), address_number(interface["address"].text()), static_cast<int>(interface["prefix"].integer(-1))); }
@@ -59,18 +63,21 @@ Json parse_network(const Json& addresses, const Json& routes, const Json& neighb
 }
 Json local_network() {
   const std::vector<std::vector<std::string>> commands = {{"ip","-j","-4","address","show"}, {"ip","-j","-4","route","show"}, {"ip","-j","-4","neighbor","show"}, {"iw","dev"}};
-  std::vector<std::future<std::string>> jobs;
+  std::vector<std::future<CommandResult>> jobs;
   for (auto command : commands) jobs.push_back(std::async(std::launch::async, [command] {
     try {
-      auto r = run(command, 200);
-      if (!r.code) return r.output;
+      auto r = run(command, 1000);
+      if (!r.code) return r;
       std::fprintf(stderr, "network probe %s %s failed: exit %d\n", command[0].c_str(), command.back().c_str(), r.code);
     } catch (const std::exception& error) {
       std::fprintf(stderr, "network probe %s %s failed: %s\n", command[0].c_str(), command.back().c_str(), error.what());
     }
-    return std::string();
+    return CommandResult{-1, {}};
   }));
-  std::vector<std::string> outputs; for (auto& job : jobs) outputs.push_back(job.get());
+  std::vector<std::string> outputs;
+  bool failed = false;
+  for (auto& job : jobs) { auto result = job.get(); failed |= result.code != 0; outputs.push_back(std::move(result.output)); }
+  if (failed) throw std::runtime_error("network_probe_failed");
   return parse_network(records(outputs[0]), records(outputs[1]), records(outputs[2]), outputs[3]);
 }
 Json scan_sources(const Json& network, const std::string& profile, const std::string& local) {

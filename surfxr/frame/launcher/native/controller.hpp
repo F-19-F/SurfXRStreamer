@@ -5,7 +5,7 @@
 namespace surfxr::launcher {
 class Controller {
  public:
-  explicit Controller(Paths paths, std::function<Json()> network_reader = local_network);
+  explicit Controller(Paths paths, std::function<Json()> network_reader);
   ~Controller();
   Json request(const Json& request);
   Json result(bool ok = true, const std::string& message = "");
@@ -16,13 +16,13 @@ class Controller {
   struct Pending { Json change; int64_t serial = 0; Time deadline; std::string message; };
   Paths paths_;
   std::function<Json()> network_reader_;
-  Json network_, active_, progress_, found_ = Json::array();
+  Json active_, progress_, found_ = Json::array();
   std::unique_ptr<Process> child_;
   std::unique_ptr<Process> dashboard_start_;
   Time dashboard_deadline_{};
   std::vector<Search> searches_;
   std::array<Pending,3> pending_;
-  Time network_deadline_{}, stop_deadline_{}, mode_deadline_{};
+  Time stop_deadline_{}, mode_deadline_{};
   std::string state_ = "idle", mode_ = "desktop", message_ = "Ready to connect.", host_, pending_mode_, search_mode_, search_message_, stop_error_;
   bool configured_ = false, stop_requested_ = false, preferred_search_ = false;
   int stop_stage_ = 0;
@@ -45,7 +45,7 @@ class Controller {
   Json change_preference(int family, const Json& request);
   void poll_preferences();
 };
-int serve(const Paths& paths, std::function<Json()> network_reader = local_network);
+int serve(const Paths& paths, std::function<Json()> network_reader = {});
 Json deployment(const Paths& paths, const std::string& command, const Json& request);
 Json verify_release(const fs::path& root);
 bool install_runtime(const Paths& paths, const fs::path& build);

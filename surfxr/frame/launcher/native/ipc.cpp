@@ -1,4 +1,5 @@
 #include "controller.hpp"
+#include "network_monitor.hpp"
 #include <cerrno>
 #include <cstring>
 #include <csignal>
@@ -56,6 +57,9 @@ void viewer_command(const Paths& paths, const std::string& command) {
   if (fd.get() < 0 || ::sendto(fd.get(), command.data(), command.size(), MSG_NOSIGNAL, reinterpret_cast<const sockaddr*>(&addr), sizeof(addr)) != static_cast<ssize_t>(command.size())) throw std::runtime_error("viewer_not_ready");
 }
 int serve(const Paths& paths, std::function<Json()> network_reader) {
+  NetworkMonitor monitor;
+  const bool probe_network = !network_reader;
+  if (probe_network) { monitor.poll(); network_reader = [&monitor] { monitor.poll(); return monitor.snapshot(); }; }
   ::umask(0077); private_directory(paths.runtime); Lock lock(paths.runtime/"service.lock");
   auto endpoint = paths.runtime/"control.sock";
   struct stat st{};
@@ -68,6 +72,7 @@ int serve(const Paths& paths, std::function<Json()> network_reader) {
   stopped = 0; ::signal(SIGINT,stop_signal); ::signal(SIGTERM,stop_signal); ::signal(SIGPIPE,SIG_IGN);
   Controller manager(paths,std::move(network_reader));
   while (!stopped) {
+    if (probe_network) monitor.poll();
     manager.poll(); pollfd poller{server.get(), POLLIN, 0}; if (::poll(&poller,1,50) <= 0) continue;
     Fd connection(::accept4(server.get(), nullptr, nullptr, SOCK_CLOEXEC | SOCK_NONBLOCK));
     if (connection.get() < 0) continue;
