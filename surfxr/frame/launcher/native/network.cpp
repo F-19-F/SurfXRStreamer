@@ -1,5 +1,6 @@
 #include "connection.hpp"
 #include <arpa/inet.h>
+#include <cstdio>
 #include <future>
 #include <map>
 #include <regex>
@@ -59,7 +60,16 @@ Json parse_network(const Json& addresses, const Json& routes, const Json& neighb
 Json local_network() {
   const std::vector<std::vector<std::string>> commands = {{"ip","-j","-4","address","show"}, {"ip","-j","-4","route","show"}, {"ip","-j","-4","neighbor","show"}, {"iw","dev"}};
   std::vector<std::future<std::string>> jobs;
-  for (auto command : commands) jobs.push_back(std::async(std::launch::async, [command] { try { auto r = run(command, 200); return r.code ? "" : r.output; } catch (...) { return std::string(); } }));
+  for (auto command : commands) jobs.push_back(std::async(std::launch::async, [command] {
+    try {
+      auto r = run(command, 200);
+      if (!r.code) return r.output;
+      std::fprintf(stderr, "network probe %s %s failed: exit %d\n", command[0].c_str(), command.back().c_str(), r.code);
+    } catch (const std::exception& error) {
+      std::fprintf(stderr, "network probe %s %s failed: %s\n", command[0].c_str(), command.back().c_str(), error.what());
+    }
+    return std::string();
+  }));
   std::vector<std::string> outputs; for (auto& job : jobs) outputs.push_back(job.get());
   return parse_network(records(outputs[0]), records(outputs[1]), records(outputs[2]), outputs[3]);
 }
